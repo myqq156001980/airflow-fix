@@ -21,7 +21,7 @@ from past.builtins import basestring
 from collections import defaultdict, Counter
 
 from datetime import datetime
-
+from datetime import timedelta
 import getpass
 import logging
 import socket
@@ -773,10 +773,11 @@ class SchedulerJob(BaseJob):
                 now = datetime.now()
                 next_start = dag.following_schedule(now)
                 last_start = dag.previous_schedule(now)
+                # 修改确定start_date逻辑如果当前时间超出了下次执行时间,则制定start_date为下次执行时间,如果没有超出制定为上次执行时间
                 if next_start <= now:
-                    new_start = last_start
+                    new_start = next_start
                 else:
-                    new_start = dag.previous_schedule(last_start)
+                    new_start = last_start
 
                 if dag.start_date:
                     if new_start >= dag.start_date:
@@ -789,7 +790,8 @@ class SchedulerJob(BaseJob):
                 # First run
                 task_start_dates = [t.start_date for t in dag.tasks]
                 if task_start_dates:
-                    next_run_date = dag.normalize_schedule(min(task_start_dates))
+                    # 直接将next_run_date根据开始时间指定为下次cron的时间
+                    next_run_date = dag.following_schedule(min(task_start_dates))
                     self.logger.debug("Next run date based on tasks {}"
                                       .format(next_run_date))
             else:
@@ -806,13 +808,15 @@ class SchedulerJob(BaseJob):
                 next_run_date = (dag.start_date if not next_run_date
                                  else max(next_run_date, dag.start_date))
                 if next_run_date == dag.start_date:
-                    next_run_date = dag.normalize_schedule(dag.start_date)
+                    # 直接将next_run_date根据开始时间指定为下次cron的时间
+                    next_run_date = dag.following_schedule(dag.start_date)
 
                 self.logger.debug("Dag start date: {}. Next run date: {}"
                                   .format(dag.start_date, next_run_date))
 
             # don't ever schedule in the future
-            if next_run_date > datetime.now():
+            # 防止检查时候错过检查时间, 将时间人为提前30秒钟
+            if next_run_date > (datetime.now() + timedelta(seconds=30)):
                 return
 
             # this structure is necessary to avoid a TypeError from concatenating
@@ -835,7 +839,8 @@ class SchedulerJob(BaseJob):
             if next_run_date and min_task_end_date and next_run_date > min_task_end_date:
                 return
 
-            if next_run_date and period_end and period_end <= datetime.now():
+            # 去掉无用的周期检查
+            if next_run_date :
                 next_run = dag.create_dagrun(
                     run_id='scheduled__' + next_run_date.isoformat(),
                     execution_date=next_run_date,
