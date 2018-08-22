@@ -6,4 +6,15 @@
 的逻辑
 
 
+# 使用scheduler(坑)
+> scheduler启动任务后会有两个进程, 
+```
+work     24014  5558  0 13:02 ?        00:01:13 /home/work/software/python3/bin/python3.6 /home/work/software/python3/bin/airflow run spider_365House group_rentplat_365_nanjing 2018-08-22T06:00:00 --local -sd /home/work/airflow/dags/spider_365House.py
+work     24023 24014  0 13:02 ?        00:00:01 /home/work/software/python3/bin/python3.6 /home/work/software/python3/bin/airflow run spider_365House group_rentplat_365_nanjing 2018-08-22T06:00:00 --job_id 1170 --raw -sd DAGS_FOLD
+
+```
+
+> 当出现异常 24014 进程退出后会 24023 job进程会托管到系统进程1 下面继续运行. 这是需要注意的地方
+
+
 ### version 1.8.0
